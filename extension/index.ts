@@ -12,9 +12,10 @@ import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
  * into the session as a user prompt, so a DM to the bot behaves exactly like a
  * message typed in the OMP terminal.
  *
- * The extension is generic over the Telegram MCP server name so it keeps
- * working if the server is renamed in `~/.omp/agent/mcp.json`. It only reacts
- * to the channel notification method and never mutates access control.
+ * NOTE: OMP sets `event.server` to the MCP `server:tool` form — observed as
+ * `"telegram:telegram"` (the same value as the `path: "mcp:telegram:telegram"`
+ * in OMP logs). So the server match must accept the bare name, the
+ * `server:tool` form, or a `:telegram` suffix.
  */
 
 type ChannelNotification = {
@@ -35,6 +36,15 @@ function resolveServerNames(): string[] {
       .filter(Boolean);
   }
   return [DEFAULT_SERVER];
+}
+
+/**
+ * OMP reports `event.server` in `server:tool` form (e.g. `telegram:telegram`),
+ * so a name matches when it is exactly the server, equals `name:name`, or the
+ * value ends with `:<name>`.
+ */
+function serverMatches(server: string, names: string[]): boolean {
+  return names.some((n) => server === n || server === `${n}:${n}` || server.endsWith(`:${n}`));
 }
 
 function formatAttachment(meta: Record<string, unknown>): string {
@@ -58,7 +68,12 @@ export default function telegramChannelBridge(pi: ExtensionAPI): void {
   pi.logger.info(`[telegram-bridge] loaded; listening on servers: ${servers.join(", ")}`);
 
   pi.on("mcp_notification", (event) => {
-    if (!servers.includes(event.server)) return;
+    if (!serverMatches(event.server, servers)) {
+      pi.logger.debug(
+        `[telegram-bridge] ignore notification server=${JSON.stringify(event.server)} method=${JSON.stringify(event.method)}`,
+      );
+      return;
+    }
     if (event.method !== CHANNEL_METHOD) return;
 
     const params = (event.params ?? {}) as ChannelNotification;
