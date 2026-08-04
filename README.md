@@ -14,8 +14,13 @@ This extension closes that gap using OMP's `mcp_notification` extension event:
 
 ```
 Telegram DM → Telegram MCP server → notifications/claude/channel
-  → OMP mcp_notification event → pi.sendUserMessage("steer") → agent turn starts
+  → OMP mcp_notification event → pi.sendUserMessage() → agent turn starts
 ```
+
+Two real-world gotchas are handled in the code (both hit us in practice):
+
+- **`event.server` is reported in MCP `server:tool` form** — OMP sets it to `telegram:telegram`, not `telegram`. The bridge matches the bare name, the `name:name` form, or any `:<name>` suffix.
+- **`deliverAs` is omitted** — `pi.sendUserMessage` starts a turn when idle and queues as a steer only while streaming *when `deliverAs` is unset*. Passing `deliverAs: "steer"` forces steer even when idle, which fails to start a fresh turn after a session was aborted or left idle. Omit it so an idle session reliably starts a turn.
 
 ## Install
 
@@ -71,13 +76,58 @@ Extension modules load at session start, so restart `omp` for the bridge to take
 
 ### 4. Pair your account
 
-DM the bot anything and it replies with a six-character pairing code, recorded under `pending` in `<TELEGRAM_STATE_DIR>/access.json`. Approve it:
+DM the bot anything and it replies with a six-character pairing code, recorded under `pending` in `<TELEGRAM_STATE_DIR>/access.json`.
 
-```
-/telegram:access pair <code>
+> **OMP is not Claude Code.** The `/telegram:access pair <code>` command belongs to the Claude Code skill, which reads and writes `~/.claude/channels/telegram/access.json` — **not** your OMP bot's `<TELEGRAM_STATE_DIR>/access.json`. Running it does nothing for an OMP bot. Approve the pairing by editing the OMP bot's state file directly, as below.
+
+#### Find your bot's state directory
+
+The bot stores its state (access control, pending pairing codes, downloaded attachments) in a **state directory** — a folder on disk that the bot reads and writes to decide who may message it. That folder is referenced as `<STATE_DIR>` throughout this guide.
+
+The state dir is whatever `TELEGRAM_STATE_DIR` is set to in `~/.omp/agent/mcp.json`. A typical value is `~/.omp-telegram` — expand `~` to your home directory (`C:\Users\<you>\.omp-telegram` on Windows, `/Users/<you>/.omp-telegram` on macOS). The file to edit is `<STATE_DIR>/access.json`.
+
+#### Approve the pairing (edit the JSON by hand)
+
+DM the bot a message. The bot replies with a 6-char code and writes a `pending` entry into `<STATE_DIR>/access.json`, e.g.:
+
+```json
+{
+  "dmPolicy": "pairing",
+  "allowFrom": [],
+  "groups": {},
+  "pending": {
+    "c111f4": {
+      "senderId": "123456789",
+      "chatId": "123456789",
+      "createdAt": 1785826860181,
+      "expiresAt": 1785830460181,
+      "replies": 2
+    }
+  }
+}
 ```
 
-Note that the skill writes to `~/.claude/channels/telegram/` by default. If your bot uses a different `TELEGRAM_STATE_DIR`, edit that directory's `access.json` instead — move the `senderId` into `allowFrom`, delete the `pending` entry, and write `approved/<senderId>` containing the `chatId`.
+To approve:
+
+1. **Read** `<STATE_DIR>/access.json` first (the bot may have added entries — never clobber it).
+2. Move `senderId` (the value inside the `pending.<code>` object) into `allowFrom` (dedupe).
+3. Delete the `pending.<code>` entry.
+4. Write the file back, pretty-printed:
+   ```json
+   {
+     "dmPolicy": "pairing",
+     "allowFrom": ["123456789"],
+     "groups": {},
+     "pending": {}
+   }
+   ```
+5. Create the approval marker file `<STATE_DIR>/approved/<senderId>` containing the `chatId`:
+   ```
+   echo "123456789" > <STATE_DIR>/approved/123456789
+   ```
+   The bot polls `approved/` every 5s, sends `Paired! Say hi to Claude.`, then deletes the marker.
+
+The code expires after a short window (`expiresAt`); if the `pending` entry is gone, DM the bot again to get a fresh code. If the bot is already in `allowFrom`, pairing is done — no code is issued because `dmPolicy: "allowlist"` delivers straight through.
 
 From then on, every message you send the bot is injected into the OMP session.
 
@@ -104,7 +154,7 @@ export TELEGRAM_BRIDGE_SERVER="my-telegram"   # comma-separated for several
 - **Access control is not touched.** This extension only injects messages. Pairing approvals and allowlist changes stay with the MCP server and with you.
 - **Same process as OMP.** Extensions run in-process. Install code you trust.
 - **The sender label is forgeable.** The injected `[Telegram @name (chat ...)]` prefix is part of the same string as the message body, so an allowlisted sender can type that format into their message and appear to be someone else. The MCP server's allowlist is the real boundary — **only allow people you trust**.
-- **Messages interrupt work in progress.** Delivery uses `deliverAs: "steer"`, which cuts into a running turn. That is the intent, but sending several messages in a row will repeatedly interrupt whatever the agent is doing.
+- **Messages interrupt work in progress.** Delivery omits `deliverAs`, so a message that arrives while the agent is mid-turn queues as a steer and cuts in. That is the intent, but sending several messages in a row will repeatedly interrupt whatever the agent is doing.
 
 ## License
 
