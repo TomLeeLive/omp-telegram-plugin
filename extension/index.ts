@@ -55,6 +55,8 @@ function formatAttachment(meta: Record<string, unknown>): string {
 export default function telegramChannelBridge(pi: ExtensionAPI): void {
   const servers = resolveServerNames();
 
+  pi.logger.info(`[telegram-bridge] loaded; listening on servers: ${servers.join(", ")}`);
+
   pi.on("mcp_notification", (event) => {
     if (!servers.includes(event.server)) return;
     if (event.method !== CHANNEL_METHOD) return;
@@ -84,9 +86,11 @@ export default function telegramChannelBridge(pi: ExtensionAPI): void {
       ? `[Telegram @${user} (chat ${chatId})${stamp}] ${body}`
       : `[Telegram @${user}${stamp}] ${body}`;
 
-    // "steer" interrupts an in-flight turn; if idle it starts one immediately.
-    // This is the same delivery mode the OMP docs recommend for bridging
-    // push-capable MCP servers into a session.
-    pi.sendUserMessage(prompt, { deliverAs: "steer" });
+    // Omit deliverAs so the documented semantics apply: "idle starts a turn;
+    // streaming queues as steer unless deliverAs is set". Passing
+    // deliverAs:"steer" would force steer even when idle, which can fail to
+    // start a fresh turn after a session was aborted or left idle.
+    pi.logger.info(`[telegram-bridge] forwarding message from @${user}: ${body.slice(0, 80)}`);
+    pi.sendUserMessage(prompt);
   });
 }
