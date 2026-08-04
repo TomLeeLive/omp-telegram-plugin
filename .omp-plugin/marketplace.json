@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "omp-telegram-plugin",
+  "owner": {
+    "name": "Tom Jaejoon Lee"
+  },
+  "metadata": {
+    "description": "Bridge Telegram MCP channel notifications into OMP sessions as automatic user prompts.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "omp-telegram-bridge",
+      "description": "Auto-forward Telegram MCP inbound messages into the OMP agent turn.",
+      "source": "./",
+      "category": "development",
+      "version": "0.1.0",
+      "license": "MIT",
+      "homepage": "https://github.com/TomLeeLive/omp-telegram-plugin",
+      "repository": "https://github.com/TomLeeLive/omp-telegram-plugin",
+      "keywords": ["omp", "oh-my-pi", "telegram", "mcp", "channel", "bridge"]
+    }
+  ]
+}

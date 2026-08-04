@@ -1,0 +1,27 @@
+{
+  "name": "omp-telegram-bridge",
+  "version": "0.1.0",
+  "description": "Bridges Telegram MCP channel notifications into OMP sessions as automatic user prompts.",
+  "license": "MIT",
+  "type": "module",
+  "main": "extension/index.ts",
+  "exports": {
+    ".": "./extension/index.ts"
+  },
+  "files": [
+    "extension"
+  ],
+  "omp": {
+    "extensions": [
+      "./extension/index.ts"
+    ]
+  },
+  "keywords": [
+    "omp",
+    "oh-my-pi",
+    "telegram",
+    "mcp",
+    "channel",
+    "bridge"
+  ]
+}

@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Runtime state
+*.log
+
+# Editor/OS
+.DS_Store
+Thumbs.db
