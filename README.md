@@ -6,6 +6,12 @@ A DM to your bot lands in the agent turn as if you had typed it in the terminal 
 
 *[한국어 README](README.ko.md)*
 
+## Requirements
+
+- **OMP ≥ 17.2.7** — the bridge uses the `mcp_notification` extension event and `pi.sendUserMessage`, both part of the OMP extension API. Verified on 17.2.7.
+- **Bun ≥ 1.3.14** — the Telegram MCP server runs on Bun.
+- **Telegram MCP server** — the `telegram` server from `claude-plugins-official`, configured in `~/.omp/agent/mcp.json` (see below).
+
 ## Why this exists
 
 OMP receives `notifications/claude/channel` notifications from the Telegram MCP server, but it does **not** inject them into the session. So messages sent to the bot never reach the agent, and you end up pasting them in by hand.
@@ -73,6 +79,16 @@ Or from the TUI:
 ### 3. Restart the session
 
 Extension modules load at session start, so restart `omp` for the bridge to take effect.
+
+### 3.5. Verify it loaded
+
+After restarting, check the OMP log for the bridge's load line — look in `~/.omp/logs/omp.<timestamp>.log`:
+
+```
+[telegram-bridge] loaded; listening on servers: telegram
+```
+
+If you see that line, the extension is active. (If it is missing, the extension did not load — see [Troubleshooting](#troubleshooting).)
 
 ### 4. Pair your account
 
@@ -148,6 +164,22 @@ The bridge listens on a server named `telegram` by default. If yours is named di
 ```bash
 export TELEGRAM_BRIDGE_SERVER="my-telegram"   # comma-separated for several
 ```
+
+## Troubleshooting
+
+**No `[telegram-bridge] loaded` line in the log after restart.**
+
+- Confirm the extension file is where OMP scans it: `<agent-dir>/extensions/telegram-channel-bridge.ts` (default `~/.omp/agent/extensions/`). If you installed via marketplace, confirm it shows in `omp plugin list`.
+- Restart `omp` again — extensions load only at session start.
+
+**Messages arrive (log shows `MCP notification received ... notifications/claude/channel`) but nothing is injected.**
+
+- Check the log for `[telegram-bridge] forwarding message from @...`. If it is absent, the `event.server` filter did not match. OMP reports the server in `server:tool` form (`telegram:telegram`), which the bridge handles — but if your MCP server is named differently (e.g. `my-telegram`), set `TELEGRAM_BRIDGE_SERVER` accordingly.
+- If `[telegram-bridge] forwarding...` appears but the agent does not respond, the message was delivered as a user prompt — check that a turn actually started (the OMP session should wake).
+
+**Inbound messages are dropped entirely (no `MCP notification received` line).**
+
+- The bot is not polled or the sender is not allowlisted. Check the bot's state directory (`<STATE_DIR>` — see [Pair your account](#4-pair-your-account)): `allowFrom` must contain the sender, or `dmPolicy` must be `pairing` with an approved code.
 
 ## Caveats
 

@@ -6,6 +6,12 @@ Telegram MCP 채널 알림을 OMP 세션으로 **자동 주입**하는 확장 �
 
 *[English README](README.md)*
 
+## 요구사항
+
+- **OMP ≥ 17.2.7** — 브리지는 OMP 확장 API의 `mcp_notification` 이벤트와 `pi.sendUserMessage`를 사용합니다. 17.2.7에서 검증됨.
+- **Bun ≥ 1.3.14** — 텔레그램 MCP 서버가 Bun으로 실행됩니다.
+- **Telegram MCP 서버** — `claude-plugins-official`의 `telegram` 서버를 `~/.omp/agent/mcp.json`에 설정 (아래 참조).
+
 ## 배경 / 왜 필요한가
 
 OMP는 MCP 서버의 `notifications/claude/channel` 알림을 받지만, 이를 **세션 턴에 자동 주입하지 않습니다.** 그래서 텔레그램 봇에 DM을 보내도 에이전트가 자동으로 받지 못하고, 매번 수동으로 복사·붙여넣기해야 했습니다.
@@ -72,6 +78,16 @@ omp plugin install omp-telegram-bridge@omp-telegram-plugin
 ### 3. 세션 재시작
 
 확장 모듈은 세션 시작 시 로드됩니다. `omp`를 재시작해야 적용됩니다.
+
+### 3.5. 로드 확인
+
+재시작 후 OMP 로그에서 브리지 로드 라인을 확인하세요 — `~/.omp/logs/omp.<타임스탬프>.log`에서:
+
+```
+[telegram-bridge] loaded; listening on servers: telegram
+```
+
+이 라인이 보이면 확장이 활성화된 것입니다. (없다면 확장이 로드되지 않은 것 — [문제 해결](#문제-해결) 참조)
 
 ### 4. 페어링
 
@@ -147,6 +163,22 @@ omp plugin install omp-telegram-bridge@omp-telegram-plugin
 ```bash
 export TELEGRAM_BRIDGE_SERVER="my-telegram"   # 또는 쉼표로 여러 개
 ```
+
+## 문제 해결
+
+**재시작 후 로그에 `[telegram-bridge] loaded` 라인이 없음.**
+
+- 확장 파일이 OMP가 스캔하는 위치에 있는지 확인: `<agent-dir>/extensions/telegram-channel-bridge.ts` (기본 `~/.omp/agent/extensions/`). marketplace로 설치했다면 `omp plugin list`에 보이는지 확인.
+- `omp`를 다시 재시작 — 확장은 세션 시작 시에만 로드됩니다.
+
+**메시지가 도착했는데(로그에 `MCP notification received ... notifications/claude/channel`) 주입이 안 됨.**
+
+- 로그에 `[telegram-bridge] forwarding message from @...`가 있는지 확인. 없다면 `event.server` 필터가 매칭되지 않은 것. OMP는 서버를 `server:tool` 형태(`telegram:telegram`)로 보고하는데, 브리지가 이를 처리합니다. MCP 서버 이름이 다르다면(예: `my-telegram`) `TELEGRAM_BRIDGE_SERVER`를 설정하세요.
+- `[telegram-bridge] forwarding...`은 있는데 에이전트가 응답하지 않는다면, 메시지가 user 프롬프트로 전달된 것 — 실제로 턴이 시작됐는지(OMP 세션이 깨어나는지) 확인.
+
+**인바운드 메시지가 아예 버려짐 (`MCP notification received` 라인 자체가 없음).**
+
+- 봇이 폴링되지 않거나 발신자가 허용목록에 없는 것. 봇의 상태 디렉토리(`<STATE_DIR>` — [페어링](#4-페어링) 참조)를 확인: `allowFrom`에 발신자가 있어야 하거나, `dmPolicy`가 `pairing`이고 코드가 승인됐어야 합니다.
 
 ## 주의사항
 
