@@ -57,7 +57,7 @@ Add the server to `~/.omp/agent/mcp.json`. Telegram allows exactly one `getUpdat
 
 ```bash
 # Add the repository as a marketplace
-omp plugin marketplace add <owner>/omp-telegram-plugin
+omp plugin marketplace add TomLeeLive/omp-telegram-plugin
 
 # Install (user scope)
 omp plugin install omp-telegram-bridge@omp-telegram-plugin
@@ -66,7 +66,7 @@ omp plugin install omp-telegram-bridge@omp-telegram-plugin
 Or from the TUI:
 
 ```
-/marketplace add <owner>/omp-telegram-plugin
+/marketplace add TomLeeLive/omp-telegram-plugin
 /marketplace install omp-telegram-bridge@omp-telegram-plugin
 ```
 

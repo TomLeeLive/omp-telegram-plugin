@@ -56,7 +56,7 @@ OMP는 MCP 서버의 `notifications/claude/channel` 알림을 받지만, 이를 
 
 ```bash
 # 저장소를 marketplace로 추가
-omp plugin marketplace add <owner>/omp-telegram-plugin
+omp plugin marketplace add TomLeeLive/omp-telegram-plugin
 
 # 플러그인 설치 (user scope)
 omp plugin install omp-telegram-bridge@omp-telegram-plugin
@@ -65,7 +65,7 @@ omp plugin install omp-telegram-bridge@omp-telegram-plugin
 또는 TUI에서:
 
 ```
-/marketplace add <owner>/omp-telegram-plugin
+/marketplace add TomLeeLive/omp-telegram-plugin
 /marketplace install omp-telegram-bridge@omp-telegram-plugin
 ```
 
